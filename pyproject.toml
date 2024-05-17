@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ddnsu"
+maintainers = [
+    {name = "Phillippe Ang"}
+]
+authors = [
+    {name = "Phillippe Ang"}
+]
+description = "A dynamic DNS update client"
+readme = "README.md"
+license = {file = "COPYING"}
+keywords = ["ddns", "update", "client", "dynamic", "dns"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License"
+]
+requires-python = ">=3.6"
+dependencies = []
+dynamic = ["version"]
+
+[project.scripts]
+ddnsup = "ddnsu.main:main"
+
+[project.urls]
+Homepage = "https://pypi.org/project/ddnsu/"
+Documentation = "https://pypi.org/project/ddnsu/"
+Repository = "https://github.com/phillippe/ddnsu.git"
+Issues = "https://github.com/phillippe/ddnsu/issues"
+Changelog = "https://github.com/phillippe/ddnsu/blob/main/CHANGELOG.md"
+
+[tool.setuptools.dynamic]
+version = {attr = "ddnsu.__version__"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["ddnsu*"]
