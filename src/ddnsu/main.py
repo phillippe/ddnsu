@@ -75,6 +75,10 @@ def _get_ip():
 
 
 def _update_ip(pswd, domain, hosts, ip):
+    if not pswd or not domain or not hosts:
+        log.error("`pswd`, `domain`, and `hosts` must not be empty")
+        return
+
     url = f"/update?domain={domain}&password={pswd}"
 
     if ip is None:
@@ -93,6 +97,9 @@ def _update_ip(pswd, domain, hosts, ip):
     connection = http.client.HTTPSConnection(_DDNS_UPDATE_HOST)
 
     for host in hosts:
+        if not host:
+            continue
+
         connection.request("GET", f"{url}&host={host}")
         response = connection.getresponse()
 
