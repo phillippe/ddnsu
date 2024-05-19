@@ -79,7 +79,7 @@ def _update_ip(pswd, domain, hosts, ip):
 
     if ip is None:
         log.error("No IP address")
-        sys.exit(1)
+        return
     elif ip == "namecheap":
         log.info("Leaving IP address blank for Namecheap to identify")
     elif _IP_ADDRESS_PATTERN.match(ip):
@@ -87,7 +87,7 @@ def _update_ip(pswd, domain, hosts, ip):
         url = f"{url}&ip={ip}"
     else:
         log.error("Invalid IP address: %s", ip)
-        sys.exit(1)
+        return
 
     log.info("Updating records")
     connection = http.client.HTTPSConnection(_DDNS_UPDATE_HOST)
