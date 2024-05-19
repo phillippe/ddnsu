@@ -16,8 +16,20 @@ _DDNS_UPDATE_HOST = "dynamicdns.park-your-domain.com"
 log = logging.getLogger("ddnsu")
 
 
-def _configure_logger(level):
-    path = os.path.join(os.getcwd(), "logs")
+def _check_working_dir(working_dir):
+    # Logger isn't configured at this point so use print instead
+    if not os.path.exists(working_dir):
+        os.makedirs(working_dir, exist_ok=True)
+    elif os.path.isfile(working_dir):
+        print(f"Invalid directory path (points to a file): {working_dir}")
+        sys.exit(1)
+    elif not os.access(working_dir, os.R_OK | os.W_OK):
+        print(f"Directory is not readable/writable: {working_dir}")
+        sys.exit(1)
+
+
+def _configure_logger(working_dir, level):
+    path = os.path.join(working_dir, "logs")
     os.makedirs(path, exist_ok=True)
 
     formatter = logging.Formatter("%(asctime)s %(levelname)s: %(message)s", "%H:%M:%S")
@@ -105,11 +117,13 @@ def main(argv):
     parser.add_argument("domain", help="The domain to be updated")
     parser.add_argument("hosts", help="A comma separated list of hosts to be updated")
     parser.add_argument("--ip", help="The new IP address", default="namecheap")
+    parser.add_argument("-w", "--working_dir", help="The path to use as the working directory", default=os.getcwd())
     parser.add_argument("-l", "--log_level", help="The logging level to use", default="INFO")
 
     args, _ = parser.parse_known_args(argv)
 
-    _configure_logger(args.log_level.upper())
+    _check_working_dir(args.working_dir)
+    _configure_logger(args.working_dir, args.log_level.upper())
 
     log.info("Starting ddnsu")
 
