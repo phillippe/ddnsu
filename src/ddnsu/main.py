@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 
 import argparse
+import datetime
 import http.client
+import logging
+import os
 import re
 import sys
 import xml.etree.ElementTree as xml
@@ -10,18 +13,50 @@ _IP_ADDRESS_PATTERN = re.compile(r"^((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}$")
 _CHECK_IP_HOST = "checkip.amazonaws.com"
 _DDNS_UPDATE_HOST = "dynamicdns.park-your-domain.com"
 
+log = logging.getLogger("ddnsu")
+
+
+def _configure_logger(level):
+    path = os.path.join(os.getcwd(), "logs")
+    os.makedirs(path, exist_ok=True)
+
+    formatter = logging.Formatter("%(asctime)s %(levelname)s: %(message)s", "%H:%M:%S")
+    handler = logging.FileHandler(os.path.join(path, f"ddnsu_{datetime.date.today()}.log"), encoding="utf-8")
+    handler.setFormatter(formatter)
+    log.addHandler(handler)
+
+    formatter = logging.Formatter("%(asctime)s: %(message)s", "%H:%M:%S")
+    handler = logging.StreamHandler()
+    handler.setFormatter(formatter)
+    log.addHandler(handler)
+
+    levels = {
+        'DEBUG': logging.DEBUG,
+        'INFO': logging.INFO,
+        'WARNING': logging.WARNING,
+        'ERROR': logging.ERROR,
+        'CRITICAL': logging.CRITICAL,
+    }
+
+    if level in levels:
+        log.setLevel(levels[level])
+    else:
+        log.setLevel(logging.INFO)
+        log.warning("Invalid logging level: %s. Logging level set to INFO", level)
+
 
 def _get_ip():
+    log.info("Querying %s for IP address", _CHECK_IP_HOST)
+
     connection = http.client.HTTPSConnection(_CHECK_IP_HOST)
     connection.request("GET", "/")
     response = connection.getresponse()
 
     if response.status != 200:
-        print(f"Failed to acquire IP address. status={response.status}, reason={response.reason}")
+        log.warning("Failed to acquire IP address. status=%s, reason=%s", response.status, response.reason)
         ip = None
     else:
         ip = response.read().decode().strip()
-        print(f"Acquired IP address from {_CHECK_IP_HOST}")
 
     connection.close()
     return ip
@@ -31,15 +66,18 @@ def _update_ip(pswd, domain, hosts, ip):
     url = f"/update?domain={domain}&password={pswd}"
 
     if ip is None:
-        sys.exit("No IP address")
+        log.error("No IP address")
+        sys.exit(1)
     elif ip == "namecheap":
-        print("Leaving IP address blank for Namecheap to identify")
-    else:
-        if not _IP_ADDRESS_PATTERN.match(ip):
-            sys.exit(f"Invalid IP address: {ip}")
+        log.info("Leaving IP address blank for Namecheap to identify")
+    elif _IP_ADDRESS_PATTERN.match(ip):
+        log.info("Using IP address %s", ip)
         url = f"{url}&ip={ip}"
-        print(f"Using IP address {ip}")
+    else:
+        log.error("Invalid IP address: %s", ip)
+        sys.exit(1)
 
+    log.info("Updating records")
     connection = http.client.HTTPSConnection(_DDNS_UPDATE_HOST)
 
     for host in hosts:
@@ -50,11 +88,12 @@ def _update_ip(pswd, domain, hosts, ip):
             tree = xml.fromstring(response.read().decode())
             err_count = tree.findtext("ErrCount")
             if err_count == "0":
-                print(f"Successfully updated {host}.{domain}")
+                log.debug("Successfully updated %s.%s", host, domain)
             elif err_count is not None:
-                print(f"Failed to update {host}.{domain}")
+                log.warning("Failed to update %s.%s", host, domain)
         else:
-            print(f"Failed to update host {host}.{domain}; status={response.status}, reason={response.reason}")
+            log.warning("Failed to update host %s.%s; status=%s, reason=%s",
+                        host, domain, response.status, response.reason)
 
     connection.close()
 
@@ -66,11 +105,18 @@ def main(argv):
     parser.add_argument("domain", help="The domain to be updated")
     parser.add_argument("hosts", help="A comma separated list of hosts to be updated")
     parser.add_argument("--ip", help="The new IP address", default="namecheap")
+    parser.add_argument("-l", "--log_level", help="The logging level to use", default="INFO")
 
     args, _ = parser.parse_known_args(argv)
-    ip = _get_ip() if args.ip == "detect" else args.ip
 
+    _configure_logger(args.log_level.upper())
+
+    log.info("Starting ddnsu")
+
+    ip = _get_ip() if args.ip == "detect" else args.ip
     _update_ip(args.pswd, args.domain, args.hosts.split(","), ip)
+
+    log.info("Done")
 
 
 if __name__ == "__main__":
