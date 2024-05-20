@@ -24,7 +24,7 @@ def _parse_args(argv):
 
     parser.add_argument("--pswd", help="The DDNS password")
     parser.add_argument("--domain", help="The domain to be updated")
-    parser.add_argument("--hosts", action="append", help="A host to be updated (can be repeated to specify multiple)")
+    parser.add_argument("--hosts", nargs="*", help="The hosts to be updated (space-delimited)")
     parser.add_argument("--ip", help="The new IP address or `detect` to query a web service for an address")
     parser.add_argument("-w", "--working_dir", help="The path to use as the working directory", default=os.getcwd())
     parser.add_argument("-l", "--log_level", help="The logging level to use", default="INFO")
