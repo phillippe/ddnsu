@@ -117,7 +117,7 @@ def _update_ip(pswd, domain, hosts, ip):
     connection.close()
 
 
-def main(argv):
+def run(argv):
     parser = argparse.ArgumentParser()
 
     parser.add_argument("pswd", help="The DDNS password")
@@ -140,5 +140,5 @@ def main(argv):
     log.info("Done")
 
 
-if __name__ == "__main__":
-    main(sys.argv[1:])
+def main():
+    run(sys.argv[1:])
