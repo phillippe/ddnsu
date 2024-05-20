@@ -3,6 +3,7 @@
 import argparse
 import datetime
 import http.client
+import json
 import logging
 import os
 import re
@@ -12,8 +13,22 @@ import xml.etree.ElementTree as xml
 _IP_ADDRESS_PATTERN = re.compile(r"^((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}$")
 _CHECK_IP_HOST = "checkip.amazonaws.com"
 _DDNS_UPDATE_HOST = "dynamicdns.park-your-domain.com"
+_CONFIG_SCHEMA_VERSION = 1
 
 log = logging.getLogger("ddnsu")
+
+
+def _parse_args(argv):
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("--pswd", help="The DDNS password")
+    parser.add_argument("--domain", help="The domain to be updated")
+    parser.add_argument("--hosts", action="append", help="A host to be updated (can be repeated to specify multiple)")
+    parser.add_argument("--ip", help="The new IP address", default="namecheap")
+    parser.add_argument("-w", "--working_dir", help="The path to use as the working directory", default=os.getcwd())
+    parser.add_argument("-l", "--log_level", help="The logging level to use", default="INFO")
+
+    return parser.parse_known_args(argv)[0]
 
 
 def _check_working_dir(working_dir):
@@ -55,6 +70,45 @@ def _configure_logger(working_dir, level):
     else:
         log.setLevel(logging.INFO)
         log.warning("Invalid logging level: %s. Logging level set to INFO", level)
+
+
+def _read_config(working_dir):
+    path = os.path.join(working_dir, "ddnsu_config.json")
+    log.debug("Reading config file: %s", path)
+
+    if not os.path.exists(path):
+        log.debug("Config file does not exist")
+        config = {}
+    elif not os.path.isfile(path):
+        log.warning("Invalid config (Not a file)")
+        config = {}
+    else:
+        try:
+            with open("ddnsu_config.json", "r") as f:
+                config = json.load(f)
+
+                if type(config) is not dict:
+                    log.warning("Invalid config file (Root element is not an object)")
+                    config = {'schema': _CONFIG_SCHEMA_VERSION, 'config': {}}
+
+                schema = config.get('schema')
+
+                if schema is None:
+                    log.warning("Invalid config file (No schema version specified)")
+                    config = {}
+                elif schema != _CONFIG_SCHEMA_VERSION:
+                    log.warning("Invalid config file (Current schema: %d. Found: %s)", _CONFIG_SCHEMA_VERSION, schema)
+                    config = {}
+                elif 'config' not in config:
+                    log.warning("Invalid config file (Root object is missing a 'config' child object)")
+                    config = {}
+                else:
+                    config = config['config']
+        except OSError:
+            log.exception("Failed to read config file")
+            config = {}
+
+    return config
 
 
 def _get_ip():
@@ -118,24 +172,20 @@ def _update_ip(pswd, domain, hosts, ip):
 
 
 def run(argv):
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument("pswd", help="The DDNS password")
-    parser.add_argument("domain", help="The domain to be updated")
-    parser.add_argument("hosts", help="A comma separated list of hosts to be updated")
-    parser.add_argument("--ip", help="The new IP address", default="namecheap")
-    parser.add_argument("-w", "--working_dir", help="The path to use as the working directory", default=os.getcwd())
-    parser.add_argument("-l", "--log_level", help="The logging level to use", default="INFO")
-
-    args, _ = parser.parse_known_args(argv)
-
+    args = _parse_args(argv)
     _check_working_dir(args.working_dir)
     _configure_logger(args.working_dir, args.log_level.upper())
+    config = _read_config(args.working_dir)
+
+    # override config values with argument values
+    for name, val in vars(args).items():
+        if val is not None:
+            config[name] = val
 
     log.info("Starting ddnsu")
 
-    ip = _get_ip() if args.ip == "detect" else args.ip
-    _update_ip(args.pswd, args.domain, args.hosts.split(","), ip)
+    ip = _get_ip() if config.get('ip') == "detect" else config.get('ip')
+    _update_ip(config.get('pswd'), config.get('domain'), config.get('hosts'), ip)
 
     log.info("Done")
 
