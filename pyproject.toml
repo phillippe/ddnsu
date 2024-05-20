@@ -12,7 +12,7 @@ authors = [
 ]
 description = "A dynamic DNS update client"
 readme = "README.md"
-license = {file = "COPYING"}
+license = {file = "LICENSE"}
 keywords = ["ddns", "update", "client", "dynamic", "dns"]
 classifiers = [
     "Programming Language :: Python :: 3",
