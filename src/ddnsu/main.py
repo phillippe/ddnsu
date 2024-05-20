@@ -218,7 +218,7 @@ def _record_updated_ip(working_dir, ip):
     try:
         log.debug("Writing IP address to file: %s", path)
         with open(path, "w") as f:
-            f.write(ip)
+            f.write(ip.strip())
     except OSError:
         log.exception("Failed to write IP address to file")
 
