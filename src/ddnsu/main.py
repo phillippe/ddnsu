@@ -24,7 +24,7 @@ def _parse_args(argv):
     parser.add_argument("--pswd", help="The DDNS password")
     parser.add_argument("--domain", help="The domain to be updated")
     parser.add_argument("--hosts", action="append", help="A host to be updated (can be repeated to specify multiple)")
-    parser.add_argument("--ip", help="The new IP address", default="namecheap")
+    parser.add_argument("--ip", help="The new IP address or `detect` to query a web service for an address")
     parser.add_argument("-w", "--working_dir", help="The path to use as the working directory", default=os.getcwd())
     parser.add_argument("-l", "--log_level", help="The logging level to use", default="INFO")
 
@@ -111,20 +111,30 @@ def _read_config(working_dir):
     return config
 
 
-def _get_ip():
-    log.info("Querying %s for IP address", _CHECK_IP_HOST)
+def _get_ip(arg):
+    if arg is None or _IP_ADDRESS_PATTERN.match(arg):
+        ip = arg
+    elif arg == "detect":
+        log.info("Querying %s for IP address", _CHECK_IP_HOST)
 
-    connection = http.client.HTTPSConnection(_CHECK_IP_HOST)
-    connection.request("GET", "/")
-    response = connection.getresponse()
+        connection = http.client.HTTPSConnection(_CHECK_IP_HOST)
+        connection.request("GET", "/")
+        response = connection.getresponse()
 
-    if response.status != 200:
-        log.warning("Failed to acquire IP address. status=%s, reason=%s", response.status, response.reason)
-        ip = None
+        if response.status == 200:
+            ip = response.read().decode().strip()
+            if not _IP_ADDRESS_PATTERN.match(ip):
+                log.warning("Received invalid IP address: %s", ip)
+                ip = None
+        else:
+            log.warning("Failed to acquire IP address. status=%s, reason=%s", response.status, response.reason)
+            ip = None
+
+        connection.close()
     else:
-        ip = response.read().decode().strip()
+        log.warning("Invalid IP address: %s", arg)
+        ip = None
 
-    connection.close()
     return ip
 
 
@@ -136,16 +146,10 @@ def _update_ip(pswd, domain, hosts, ip):
     url = f"/update?domain={domain}&password={pswd}"
 
     if ip is None:
-        log.error("No IP address")
-        return
-    elif ip == "namecheap":
         log.info("Leaving IP address blank for Namecheap to identify")
-    elif _IP_ADDRESS_PATTERN.match(ip):
+    else:
         log.info("Using IP address %s", ip)
         url = f"{url}&ip={ip}"
-    else:
-        log.error("Invalid IP address: %s", ip)
-        return
 
     log.info("Updating records")
     connection = http.client.HTTPSConnection(_DDNS_UPDATE_HOST)
@@ -184,7 +188,7 @@ def run(argv):
 
     log.info("Starting ddnsu")
 
-    ip = _get_ip() if config.get('ip') == "detect" else config.get('ip')
+    ip = _get_ip(config.get('ip'))
     _update_ip(config.get('pswd'), config.get('domain'), config.get('hosts'), ip)
 
     log.info("Done")
