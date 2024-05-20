@@ -226,6 +226,9 @@ def run(argv):
     args = _parse_args(argv)
     _check_working_dir(args.working_dir)
     _configure_logger(args.working_dir, args.log_level.upper())
+
+    log.info("Starting ddnsu")
+
     working_dir = args.working_dir
     config = _read_config(working_dir)
 
@@ -233,8 +236,6 @@ def run(argv):
     for name, val in vars(args).items():
         if val is not None:
             config[name] = val
-
-    log.info("Starting ddnsu")
 
     ip = _get_ip(config.get('ip'))
     if _is_prev_ip_same(working_dir, ip):
