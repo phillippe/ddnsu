@@ -14,6 +14,7 @@ _IP_ADDRESS_PATTERN = re.compile(r"^((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}$")
 _CHECK_IP_HOST = "checkip.amazonaws.com"
 _DDNS_UPDATE_HOST = "dynamicdns.park-your-domain.com"
 _CONFIG_SCHEMA_VERSION = 1
+_PREV_IP_FILE_NAME = "ddnsu_prev_ip.txt"
 
 log = logging.getLogger("ddnsu")
 
@@ -138,10 +139,34 @@ def _get_ip(arg):
     return ip
 
 
+def _is_prev_ip_same(working_dir, ip):
+    if ip is None:
+        return False
+
+    path = os.path.join(working_dir, _PREV_IP_FILE_NAME)
+
+    if not os.path.exists(path):
+        log.info("No previous IP address recorded")
+        return False
+    elif os.path.isdir(path):
+        log.warning("Failed to read previous IP address (Path points to a directory): %s", path)
+        return False
+
+    try:
+        log.debug("Reading previous IP from file: %s", path)
+        with open(path, "r") as f:
+            prev_ip = f.readline()
+            log.debug("Previous IP: %s", prev_ip)
+            return prev_ip == ip
+    except OSError:
+        log.exception("Failed to read IP address from file")
+        return False
+
+
 def _update_ip(pswd, domain, hosts, ip):
     if not pswd or not domain or not hosts:
         log.error("`pswd`, `domain`, and `hosts` must not be empty")
-        return
+        return None
 
     url = f"/update?domain={domain}&password={pswd}"
 
@@ -153,6 +178,7 @@ def _update_ip(pswd, domain, hosts, ip):
 
     log.info("Updating records")
     connection = http.client.HTTPSConnection(_DDNS_UPDATE_HOST)
+    updated_ip = None
 
     for host in hosts:
         if not host:
@@ -165,6 +191,7 @@ def _update_ip(pswd, domain, hosts, ip):
             tree = xml.fromstring(response.read().decode())
             err_count = tree.findtext("ErrCount")
             if err_count == "0":
+                updated_ip = tree.findtext("IP")
                 log.debug("Successfully updated %s.%s", host, domain)
             elif err_count is not None:
                 log.warning("Failed to update %s.%s", host, domain)
@@ -173,13 +200,34 @@ def _update_ip(pswd, domain, hosts, ip):
                         host, domain, response.status, response.reason)
 
     connection.close()
+    return updated_ip
+
+
+def _record_updated_ip(working_dir, ip):
+    if ip is None:
+        log.debug("Skipping writing IP address to file (Address is None)")
+        return
+
+    path = os.path.join(working_dir, _PREV_IP_FILE_NAME)
+
+    if os.path.isdir(path):
+        log.warning("Cannot write IP address to file (Path points to a directory): %s", path)
+        return
+
+    try:
+        log.debug("Writing IP address to file: %s", path)
+        with open(path, "w") as f:
+            f.write(ip)
+    except OSError:
+        log.exception("Failed to write IP address to file")
 
 
 def run(argv):
     args = _parse_args(argv)
     _check_working_dir(args.working_dir)
     _configure_logger(args.working_dir, args.log_level.upper())
-    config = _read_config(args.working_dir)
+    working_dir = args.working_dir
+    config = _read_config(working_dir)
 
     # override config values with argument values
     for name, val in vars(args).items():
@@ -189,7 +237,11 @@ def run(argv):
     log.info("Starting ddnsu")
 
     ip = _get_ip(config.get('ip'))
-    _update_ip(config.get('pswd'), config.get('domain'), config.get('hosts'), ip)
+    if _is_prev_ip_same(working_dir, ip):
+        log.info("Previous IP address is the same as the new IP address. Skipping update")
+    else:
+        updated_ip = _update_ip(config.get('pswd'), config.get('domain'), config.get('hosts'), ip)
+        _record_updated_ip(working_dir, updated_ip)
 
     log.info("Done")
 
