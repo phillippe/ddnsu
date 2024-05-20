@@ -84,7 +84,7 @@ def _read_config(working_dir):
         config = {}
     else:
         try:
-            with open("ddnsu_config.json", "r") as f:
+            with open(path, "r") as f:
                 config = json.load(f)
 
                 if type(config) is not dict:
