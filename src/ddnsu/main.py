@@ -28,6 +28,7 @@ def _parse_args(argv):
     parser.add_argument("--ip", help="The new IP address or `detect` to query a web service for an address")
     parser.add_argument("-w", "--working_dir", help="The path to use as the working directory", default=os.getcwd())
     parser.add_argument("-l", "--log_level", help="The logging level to use", default="INFO")
+    parser.add_argument("-f", "--force", action="store_true", help="Update even if IP address is unchanged")
 
     return parser.parse_known_args(argv)[0]
 
@@ -238,7 +239,7 @@ def run(argv):
             config[name] = val
 
     ip = _get_ip(config.get('ip'))
-    if _is_prev_ip_same(working_dir, ip):
+    if not config['force'] and _is_prev_ip_same(working_dir, ip):
         log.info("Previous IP address is the same as the new IP address. Skipping update")
     else:
         updated_ip = _update_ip(config.get('pswd'), config.get('domain'), config.get('hosts'), ip)
