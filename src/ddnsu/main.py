@@ -8,7 +8,7 @@ import logging
 import os
 import re
 import sys
-import xml.etree.ElementTree as xml
+import xml.etree.ElementTree
 
 _IP_ADDRESS_PATTERN = re.compile(r"^((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}$")
 _CHECK_IP_HOST = "checkip.amazonaws.com"
@@ -82,7 +82,7 @@ def _read_config(working_dir):
         log.debug("Config file does not exist")
         config = {}
     elif not os.path.isfile(path):
-        log.warning("Invalid config (Not a file)")
+        log.warning("Invalid config (not a file)")
         config = {}
     else:
         try:
@@ -90,19 +90,19 @@ def _read_config(working_dir):
                 config = json.load(f)
 
                 if type(config) is not dict:
-                    log.warning("Invalid config file (Root element is not an object)")
+                    log.warning("Invalid config file (root element is not an object)")
                     config = {'schema': _CONFIG_SCHEMA_VERSION, 'config': {}}
 
                 schema = config.get('schema')
 
                 if schema is None:
-                    log.warning("Invalid config file (No schema version specified)")
+                    log.warning("Invalid config file (no schema version specified)")
                     config = {}
                 elif schema != _CONFIG_SCHEMA_VERSION:
-                    log.warning("Invalid config file (Current schema: %d. Found: %s)", _CONFIG_SCHEMA_VERSION, schema)
+                    log.warning("Invalid config file (current schema: %d. found: %s)", _CONFIG_SCHEMA_VERSION, schema)
                     config = {}
                 elif 'config' not in config:
-                    log.warning("Invalid config file (Root object is missing a 'config' child object)")
+                    log.warning("Invalid config file (root object is missing a 'config' child object)")
                     config = {}
                 else:
                     config = config['config']
@@ -150,7 +150,7 @@ def _is_prev_ip_same(working_dir, ip):
         log.info("No previous IP address recorded")
         return False
     elif os.path.isdir(path):
-        log.warning("Failed to read previous IP address (Path points to a directory): %s", path)
+        log.warning("Failed to read previous IP address (path points to a directory): %s", path)
         return False
 
     try:
@@ -189,10 +189,10 @@ def _update_ip(pswd, domain, hosts, ip):
         response = connection.getresponse()
 
         if response.status == 200:
-            tree = xml.fromstring(response.read().decode())
-            err_count = tree.findtext("ErrCount")
+            tree = xml.etree.ElementTree.fromstring(response.read().decode())
+            err_count = tree.findtext('ErrCount')
             if err_count == "0":
-                updated_ip = tree.findtext("IP")
+                updated_ip = tree.findtext('IP')
                 log.debug("Successfully updated %s.%s", host, domain)
             elif err_count is not None:
                 log.warning("Failed to update %s.%s", host, domain)
@@ -206,13 +206,13 @@ def _update_ip(pswd, domain, hosts, ip):
 
 def _record_updated_ip(working_dir, ip):
     if ip is None:
-        log.debug("Skipping writing IP address to file (Address is None)")
+        log.debug("IP address is None. Skipping writing to file")
         return
 
     path = os.path.join(working_dir, _PREV_IP_FILE_NAME)
 
     if os.path.isdir(path):
-        log.warning("Cannot write IP address to file (Path points to a directory): %s", path)
+        log.warning("Cannot write IP address to file (path points to a directory): %s", path)
         return
 
     try:
