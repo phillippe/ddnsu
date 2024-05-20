@@ -23,7 +23,7 @@ dependencies = []
 dynamic = ["version"]
 
 [project.scripts]
-ddnsup = "ddnsu.main:main"
+ddnsu = "ddnsu.main:main"
 
 [project.urls]
 Homepage = "https://pypi.org/project/ddnsu/"
