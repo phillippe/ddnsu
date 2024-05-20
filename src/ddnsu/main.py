@@ -14,6 +14,7 @@ _IP_ADDRESS_PATTERN = re.compile(r"^((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}$")
 _CHECK_IP_HOST = "checkip.amazonaws.com"
 _DDNS_UPDATE_HOST = "dynamicdns.park-your-domain.com"
 _CONFIG_SCHEMA_VERSION = 1
+_CONFIG_FILE_NAME = "ddnsu_config.json"
 _PREV_IP_FILE_NAME = "ddnsu_prev_ip.txt"
 
 log = logging.getLogger("ddnsu")
@@ -75,7 +76,7 @@ def _configure_logger(working_dir, level):
 
 
 def _read_config(working_dir):
-    path = os.path.join(working_dir, "ddnsu_config.json")
+    path = os.path.join(working_dir, _CONFIG_FILE_NAME)
     log.debug("Reading config file: %s", path)
 
     if not os.path.exists(path):
@@ -86,7 +87,7 @@ def _read_config(working_dir):
         config = {}
     else:
         try:
-            with open(path, "r") as f:
+            with open(path, "r", encoding="utf-8") as f:
                 config = json.load(f)
 
                 if type(config) is not dict:
@@ -155,7 +156,7 @@ def _is_prev_ip_same(working_dir, ip):
 
     try:
         log.debug("Reading previous IP from file: %s", path)
-        with open(path, "r") as f:
+        with open(path, "r", encoding="utf-8") as f:
             prev_ip = f.readline()
             log.debug("Previous IP: %s", prev_ip)
             return prev_ip == ip
@@ -217,7 +218,7 @@ def _record_updated_ip(working_dir, ip):
 
     try:
         log.debug("Writing IP address to file: %s", path)
-        with open(path, "w") as f:
+        with open(path, "w", encoding="utf-8") as f:
             f.write(ip.strip())
     except OSError:
         log.exception("Failed to write IP address to file")
@@ -225,14 +226,14 @@ def _record_updated_ip(working_dir, ip):
 
 def run(argv):
     args = _parse_args(argv)
-    _check_working_dir(args.working_dir)
-    _configure_logger(args.working_dir, args.log_level.upper())
+    working_dir = os.path.realpath(args.working_dir)
+
+    _check_working_dir(working_dir)
+    _configure_logger(working_dir, args.log_level.upper())
 
     log.info("Starting ddnsu")
 
-    working_dir = args.working_dir
     config = _read_config(working_dir)
-
     # override config values with argument values
     for name, val in vars(args).items():
         if val is not None:
