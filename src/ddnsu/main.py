@@ -15,7 +15,8 @@ _CHECK_IP_HOST = "checkip.amazonaws.com"
 _DDNS_UPDATE_HOST = "dynamicdns.park-your-domain.com"
 _CONFIG_SCHEMA_VERSION = 1
 _CONFIG_FILE_NAME = "ddnsu_config.json"
-_PREV_IP_FILE_NAME = "ddnsu_prev_ip.txt"
+_PREV_IP_SCHEMA_VERSION = 1
+_PREV_IP_FILE_NAME = "ddnsu_prev_ip.json"
 
 log = logging.getLogger("ddnsu")
 
@@ -157,9 +158,27 @@ def _is_prev_ip_same(working_dir, ip):
     try:
         log.debug("Reading previous IP from file: %s", path)
         with open(path, "r", encoding="utf-8") as f:
-            prev_ip = f.readline()
-            log.debug("Previous IP: %s", prev_ip)
-            return prev_ip == ip
+            root = json.load(f)
+
+            if type(root) is not dict:
+                log.warning("Invalid prev_ip file (root element is not an object)")
+                return False
+
+            schema = root.get('schema')
+
+            if schema is None:
+                log.warning("Invalid prev_ip file (no schema version specified)")
+                return None
+            elif schema != _PREV_IP_SCHEMA_VERSION:
+                log.warning("Invalid prev_ip file (current schema: %d. found: %s)", _PREV_IP_SCHEMA_VERSION, schema)
+                return None
+            elif 'prev_ip' not in root:
+                log.warning("Invalid prev_ip file (root object is missing a 'prev_ip' entry)")
+                return None
+            else:
+                prev_ip = root['prev_ip']
+                log.debug("Previous IP: %s", prev_ip)
+                return prev_ip == ip
     except OSError:
         log.exception("Failed to read IP address from file")
         return False
@@ -219,8 +238,12 @@ def _record_updated_ip(working_dir, ip):
     try:
         log.debug("Writing IP address to file: %s", path)
         with open(path, "w", encoding="utf-8") as f:
-            f.write(ip.strip())
-    except OSError:
+            contents = {
+                'schema': _PREV_IP_SCHEMA_VERSION,
+                'prev_ip': ip.strip()
+            }
+            json.dump(contents, f, indent=4, ensure_ascii=False)
+    except (OSError, TypeError):
         log.exception("Failed to write IP address to file")
 
 
