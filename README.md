@@ -13,15 +13,14 @@ Namecheap's DDNS is supported.
 
 ## Installation
 
-The recommended way to install `ddnsu` is to use
-[pip](https://pip.pypa.io/en/stable/) and install from PyPI:
+The recommended way to install `ddnsu` is to use [pip][3] and install
+from PyPI:
 
 ```bash
 python -m pip install ddnsu
 ```
 
-You can also install from Wheel files available
-[here](https://pypi.org/project/cloudflare-ddns/#files):
+You can also install from Wheel files available [here][4]:
 
 ```bash
 python -m pip install './ddnsu-0.0.0.whl'
@@ -68,7 +67,7 @@ takes precedence.
 
 ## Contributing
 
-Pull requests are welcome. For major changes, please [open an issue][3] first
+Pull requests are welcome. For major changes, please [open an issue][5] first
 to discuss what you would like to change.
 
 ## License
@@ -82,4 +81,8 @@ to discuss what you would like to change.
 
 [2]: https://opensource.org/license/mit
 
-[3]: https://github.com/phillippe/ddnsu/issues
+[3]: https://pip.pypa.io/en/stable/
+
+[4]: https://pypi.org/project/ddnsu/#files
+
+[5]: https://github.com/phillippe/ddnsu/issues
