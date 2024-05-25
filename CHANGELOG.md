@@ -1,7 +1,7 @@
 # Change Log
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [0.1.0] - 2024-05-26
 ### Added
 - DNS record updater
 - Logging
