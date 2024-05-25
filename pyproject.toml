@@ -12,18 +12,18 @@ authors = [
 ]
 description = "A dynamic DNS update client"
 readme = "README.md"
-license = {file = "COPYING"}
+license = {file = "LICENSE"}
 keywords = ["ddns", "update", "client", "dynamic", "dns"]
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License"
 ]
-requires-python = ">=3.6"
+requires-python = ">=3.8"
 dependencies = []
 dynamic = ["version"]
 
 [project.scripts]
-ddnsup = "ddnsu.main:main"
+ddnsu = "ddnsu.main:main"
 
 [project.urls]
 Homepage = "https://pypi.org/project/ddnsu/"
